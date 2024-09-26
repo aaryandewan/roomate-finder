@@ -1,13 +1,17 @@
-// pages/api/users/index.ts
+// pages/api/users/[id.ts]
 import { NextApiRequest, NextApiResponse } from "next";
 import dbConnect from "../../../lib/mongodb";
 import User from "../../../models/User";
+import mongoose from "mongoose";
 
 export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse
 ) {
   const { id } = req.query;
+  if (!mongoose.Types.ObjectId.isValid(id as string)) {
+    return res.status(400).json({ success: false, message: "Invalid user ID" });
+  }
   await dbConnect();
 
   const { method } = req;

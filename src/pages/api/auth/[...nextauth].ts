@@ -17,6 +17,11 @@ declare module "next-auth" {
   }
 }
 
+interface DbUser {
+  _id: string;
+  isProfileComplete: boolean;
+}
+
 export const authOptions: NextAuthOptions = {
   providers: [
     GoogleProvider({
@@ -48,7 +53,9 @@ export const authOptions: NextAuthOptions = {
       await dbConnect();
 
       // Fetch the user from the database
-      const dbUser = await User.findOne({ email: session.user?.email });
+      const dbUser = (await User.findOne({
+        email: session.user?.email,
+      })) as DbUser;
 
       if (dbUser) {
         session.user.id = dbUser._id.toString();

@@ -52,10 +52,11 @@ const UserSchema: Schema = new Schema(
   {
     name: { type: String, required: true },
     email: { type: String, required: true, unique: true },
-    age: { type: Number },
+    age: { type: Number, required: false },
     gender: {
       type: String,
       enum: ["Male", "Female", "Other"],
+      required: false,
     },
     occupation: { type: String },
     hobbies: [{ type: String }],

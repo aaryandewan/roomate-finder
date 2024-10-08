@@ -12,7 +12,7 @@ declare module "next-auth" {
     user: {
       id: string;
       isProfileComplete: boolean;
-      email: string; // Add email property
+      email: string;
     };
   }
 }
@@ -30,44 +30,56 @@ export const authOptions: NextAuthOptions = {
     }),
   ],
   callbacks: {
-    async signIn({ user, account, profile, email, credentials }) {
-      await dbConnect();
+    async signIn({ user, account, profile }) {
+      //this runs AFTER next gets the access token and the user profile
+      try {
+        await dbConnect();
 
-      // Check if the user already exists in your database
-      const existingUser = await User.findOne({ email: user.email });
+        // Check if the user already exists in your database
+        const existingUser = await User.findOne({ email: user.email });
 
-      if (!existingUser) {
-        // If the user does not exist, create a new user document
-        const newUser = new User({
-          name: user.name,
-          email: user.email,
-          profilePicture: user.image,
-          isProfileComplete: false, // We'll add this field to track profile completion
-        });
-        await newUser.save();
+        if (!existingUser) {
+          // If the user does not exist, create a new user document
+          const newUser = new User({
+            name: user.name,
+            email: user.email,
+            profilePicture: user.image,
+            isProfileComplete: false,
+          });
+          await newUser.save();
+        }
+
+        return true;
+      } catch (error) {
+        console.error("Error during signIn callback:", error);
+        return false; // Return false if there's an error
       }
-
-      return true;
     },
-    async session({ session, token, user }) {
-      await dbConnect();
+    async session({ session, token }) {
+      try {
+        await dbConnect();
 
-      // Fetch the user from the database
-      const dbUser = (await User.findOne({
-        email: session.user?.email,
-      })) as DbUser;
+        // Fetch the user from the database
+        const dbUser = (await User.findOne({
+          email: session.user?.email,
+        })) as DbUser;
 
-      if (dbUser) {
-        session.user.id = dbUser._id.toString();
-        session.user.isProfileComplete = dbUser.isProfileComplete;
+        if (dbUser) {
+          session.user.id = dbUser._id.toString();
+          session.user.isProfileComplete = dbUser.isProfileComplete;
+        }
+
+        return session;
+      } catch (error) {
+        console.error("Error during session callback:", error);
+        return session;
       }
-
-      return session;
     },
   },
   pages: {
     signIn: "/auth/signin",
   },
+  debug: true, // Enable debug mode to get detailed logs
 };
 
 export default NextAuth(authOptions);

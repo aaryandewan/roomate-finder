@@ -3,9 +3,12 @@ import type { NextApiRequest, NextApiResponse } from "next";
 import dbConnect from "../../../lib/mongodb";
 import User, { IUser } from "../../../models/User";
 
-type Data =
-  | { success: boolean; data: IUser }
-  | { success: boolean; error: string };
+type Data = {
+  success: boolean;
+  data?: IUser;
+  error?: string;
+  message?: string;
+};
 
 export default async function handler(
   req: NextApiRequest,
@@ -54,9 +57,9 @@ export default async function handler(
       break;
     case "DELETE":
       try {
-        const deletedUser = await User.deleteOne({ _id: id });
+        const { deletedCount } = await User.deleteOne({ _id: id });
 
-        if (!deletedUser) {
+        if (deletedCount === 0) {
           return res
             .status(404)
             .json({ success: false, error: "User not found" });

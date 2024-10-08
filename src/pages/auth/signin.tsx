@@ -15,7 +15,7 @@ const SignIn: React.FC<SignInProps> = ({ providers }) => {
         <div key={provider.name}>
           <button
             className="bg-blue-500 text-white px-4 py-2 rounded"
-            onClick={() => signIn(provider.id)}
+            onClick={() => signIn(provider.id, { callbackUrl: "/home" })}
           >
             Sign in with {provider.name}
           </button>

@@ -1,7 +1,9 @@
 "use client";
 import * as React from "react";
-
-import { useState } from "react";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/app/api/auth/[...nextauth]/route";
+import { redirect } from "next/navigation";
+import { useState, useEffect } from "react";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import axios from "axios";
@@ -29,8 +31,22 @@ import { useToast } from "@/hooks/use-toast";
 
 import { Loader2 } from "lucide-react";
 
-export default function CompleteProfile() {
+// export default async function CompleteProfile() {
+//   // Fetch the session server-side to avoid flickering
+//   const session = await getServerSession(authOptions);
+
+//   // If the profile is complete, redirect the user to the /posts page
+//   if (session?.user?.isProfileComplete) {
+//     redirect("/posts");
+//   }
+
+//   // Now render the profile completion form if the profile is not complete
+//   return <CompleteProfileForm session={session} />;
+// }
+
+export default function CompleteProfileForm() {
   const { data: session } = useSession();
+
   const router = useRouter();
   const { toast } = useToast();
 
@@ -39,6 +55,12 @@ export default function CompleteProfile() {
   const [location, setLocation] = useState("");
   const [expectedRent, setExpectedRent] = useState<number | "">("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  useEffect(() => {
+    if (session && session.user.isProfileComplete) {
+      router.push("/posts");
+    }
+  }, [session, router]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

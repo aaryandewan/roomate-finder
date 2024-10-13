@@ -8,7 +8,7 @@ export default function HomeClient({ session }: { session: any }) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center">
         <p>You are not signed in</p>
-        <button onClick={() => signIn("google", { callbackUrl: "/profile" })}>
+        <button onClick={() => signIn("google", { callbackUrl: "/" })}>
           Sign In with Google
         </button>
       </div>

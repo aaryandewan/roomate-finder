@@ -17,8 +17,6 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Label } from "@/components/ui/label";
-import { Badge } from "@/components/ui/badge";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import axios from "axios"; // For API calls
 import { useSession } from "next-auth/react"; // To get user session
 import { useToast } from "@/hooks/use-toast"; // For toast notifications
@@ -26,9 +24,6 @@ import { useToast } from "@/hooks/use-toast"; // For toast notifications
 const formSchema = z.object({
   location: z.string().min(2, {
     message: "Location must be at least 2 characters.",
-  }),
-  hobbies: z.array(z.string()).min(1, {
-    message: "Please select at least one hobby.",
   }),
   expectedRent: z.string().regex(/^\d+$/, {
     message: "Expected rent must be a number.",
@@ -41,22 +36,6 @@ const formSchema = z.object({
   }),
 });
 
-const hobbyOptions = [
-  "Gymming",
-  "Cycling",
-  "Dining Out",
-  "Reading",
-  "Traveling",
-  "Photography",
-  "Cooking",
-  "Hiking",
-  "Painting",
-  "Gaming",
-  "Yoga",
-  "Dancing",
-  "Gardening",
-];
-
 export default function EditProfileForm({ user }: { user: any }) {
   const { data: session } = useSession(); // Get the session
   const { toast } = useToast(); // To show toast notifications
@@ -66,17 +45,66 @@ export default function EditProfileForm({ user }: { user: any }) {
     resolver: zodResolver(formSchema),
     defaultValues: {
       location: user.location || "", // Pre-fill with user's location
-      hobbies: user.hobbies || [], // Pre-fill with user's hobbies
       expectedRent: user.expectedRent || "", // Pre-fill with expected rent
       phoneNumber: user.phoneNumber || "", // Pre-fill with phone number
       instagramHandle: user.instagramHandle || "", // Pre-fill with Instagram handle
     },
   });
 
-  function onSubmit(values: z.infer<typeof formSchema>) {
-    // Call the API to update the user's profile
+  const [profileImage, setProfileImage] = useState(
+    user.profilePicture || "/placeholder.svg"
+  );
+  const [imageFile, setImageFile] = useState<File | null>(null); // To hold the selected image file
+
+  // Function to handle image selection
+  const handleImageChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      setImageFile(file); // Store the image file to upload later
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setProfileImage(reader.result as string); // Preview the image
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  async function onSubmit(values: z.infer<typeof formSchema>) {
+    let profilePictureUrl = user.profilePicture; // Keep existing picture if no new picture is uploaded
+
+    // If a new image is selected, upload it to S3
+    if (imageFile) {
+      try {
+        // Get the signed URL from the backend
+        const { data: signedUrlData } = await axios.get("/api/upload");
+
+        // Use the signed URL to upload the image file to S3
+        await axios.put(signedUrlData.url, imageFile, {
+          headers: {
+            "Content-Type": imageFile.type,
+            // "x-amz-acl": "public-read",
+          }, // Set the correct content type
+        });
+
+        // Save the image URL from S3 (without the signed part)
+        profilePictureUrl = signedUrlData.url.split("?")[0];
+      } catch (error) {
+        toast({
+          title: "Error",
+          description: "There was an issue uploading the profile picture.",
+          variant: "destructive",
+        });
+        console.error("Error uploading image:", error);
+        return;
+      }
+    }
+
+    // Update the user's profile with the new data and profile picture URL
     axios
-      .put(`/api/users/${session?.user?.id}`, values) // Use session to get user ID
+      .put(`/api/users/${session?.user?.id}`, {
+        ...values,
+        profilePicture: profilePictureUrl, // Include the image URL in the profile update
+      })
       .then((response) => {
         toast({
           title: "Profile Updated",
@@ -94,19 +122,6 @@ export default function EditProfileForm({ user }: { user: any }) {
         console.error("Error updating profile:", error);
       });
   }
-
-  const [profileImage, setProfileImage] = useState(user.profilePicture || "/placeholder.svg");
-
-  const handleImageChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setProfileImage(reader.result as string);
-      };
-      reader.readAsDataURL(file);
-    }
-  };
 
   return (
     <div className="container mx-auto px-4 py-8">
@@ -146,58 +161,6 @@ export default function EditProfileForm({ user }: { user: any }) {
                     <FormLabel>Location</FormLabel>
                     <FormControl>
                       <Input placeholder="Enter your location" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="hobbies"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Hobbies</FormLabel>
-                    <FormControl>
-                      <div className="space-y-2">
-                        <ScrollArea className="h-20 w-full border rounded-md p-2">
-                          <div className="flex flex-wrap gap-2">
-                            {field.value.map((hobby) => (
-                              <Badge
-                                key={hobby}
-                                variant="secondary"
-                                className="bg-secondary text-secondary-foreground hover:bg-secondary/80 cursor-pointer"
-                                onClick={() => {
-                                  const newValue = field.value.filter(
-                                    (h) => h !== hobby
-                                  );
-                                  form.setValue("hobbies", newValue);
-                                }}
-                              >
-                                {hobby} ✕
-                              </Badge>
-                            ))}
-                          </div>
-                        </ScrollArea>
-                        <ScrollArea className="h-20 w-full border rounded-md p-2">
-                          <div className="flex flex-wrap gap-2">
-                            {hobbyOptions
-                              .filter((hobby) => !field.value.includes(hobby))
-                              .map((hobby) => (
-                                <Badge
-                                  key={hobby}
-                                  variant="outline"
-                                  className="bg-background hover:bg-secondary/80 cursor-pointer"
-                                  onClick={() => {
-                                    const newValue = [...field.value, hobby];
-                                    form.setValue("hobbies", newValue);
-                                  }}
-                                >
-                                  {hobby}
-                                </Badge>
-                              ))}
-                          </div>
-                        </ScrollArea>
-                      </div>
                     </FormControl>
                     <FormMessage />
                   </FormItem>

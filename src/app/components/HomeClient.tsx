@@ -1,4 +1,4 @@
-// src/app/home/HomeClient.tsx
+// src/app/components/HomeClient.tsx
 "use client";
 
 import { signIn, signOut } from "next-auth/react";

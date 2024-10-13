@@ -1,4 +1,4 @@
-// models/ConnectionRequest.js
+// src/models/ConnectionRequest.js
 import mongoose from "mongoose";
 
 const { Schema } = mongoose;

@@ -1,8 +1,8 @@
-// src/app/api/auth/route.ts
+// src/app/api/auth/[...nextauth]/route.ts
 import NextAuth from "next-auth";
 import GoogleProvider from "next-auth/providers/google";
 import dbConnect from "@/lib/mongodb";
-import User from "@/models/User";
+import User, { IUser } from "@/models/User";
 
 export const authOptions = {
   providers: [
@@ -20,14 +20,14 @@ export const authOptions = {
         const newUser = new User({
           name: user.name,
           email: user.email,
-          profilePicture: user.image,
+          profilePicture: user.profilePicture,
           isProfileComplete: false,
         });
         await newUser.save();
       }
       return true;
     },
-    async session({ session }) {
+    async session({ session }: { session: any }) {
       await dbConnect();
       const dbUser = await User.findOne({ email: session.user?.email });
       if (dbUser) {

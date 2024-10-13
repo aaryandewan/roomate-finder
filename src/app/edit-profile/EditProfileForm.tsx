@@ -5,6 +5,8 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import * as z from "zod";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+
 import {
   Form,
   FormControl,
@@ -18,6 +20,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Label } from "@/components/ui/label";
 import axios from "axios"; // For API calls
+import { ScrollArea } from "@/components/ui/scroll-area";
+
 import { useSession } from "next-auth/react"; // To get user session
 import { useToast } from "@/hooks/use-toast"; // For toast notifications
 
@@ -25,6 +29,10 @@ const formSchema = z.object({
   location: z.string().min(2, {
     message: "Location must be at least 2 characters.",
   }),
+  hobbies: z.array(z.string()).min(1, {
+    message: "Please select at least one hobby.",
+  }),
+
   expectedRent: z.string().regex(/^\d+$/, {
     message: "Expected rent must be a number.",
   }),
@@ -36,6 +44,22 @@ const formSchema = z.object({
   }),
 });
 
+const hobbyOptions = [
+  "Gymming",
+  "Cycling",
+  "Dining Out",
+  "Reading",
+  "Traveling",
+  "Photography",
+  "Cooking",
+  "Hiking",
+  "Painting",
+  "Gaming",
+  "Yoga",
+  "Dancing",
+  "Gardening",
+];
+
 export default function EditProfileForm({ user }: { user: any }) {
   const { data: session } = useSession(); // Get the session
   const { toast } = useToast(); // To show toast notifications
@@ -46,6 +70,7 @@ export default function EditProfileForm({ user }: { user: any }) {
     defaultValues: {
       location: user.location || "", // Pre-fill with user's location
       expectedRent: user.expectedRent || "", // Pre-fill with expected rent
+      hobbies: user.hobbies || [],
       phoneNumber: user.phoneNumber || "", // Pre-fill with phone number
       instagramHandle: user.instagramHandle || "", // Pre-fill with Instagram handle
     },
@@ -55,6 +80,7 @@ export default function EditProfileForm({ user }: { user: any }) {
     user.profilePicture || "/placeholder.svg"
   );
   const [imageFile, setImageFile] = useState<File | null>(null); // To hold the selected image file
+  const [isBusy, setIsBusy] = useState(false);
 
   // Function to handle image selection
   const handleImageChange = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -70,16 +96,18 @@ export default function EditProfileForm({ user }: { user: any }) {
   };
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
+    setIsBusy(true);
     let profilePictureUrl = user.profilePicture; // Keep existing picture if no new picture is uploaded
 
     // If a new image is selected, upload it to S3
     if (imageFile) {
       try {
         // Get the signed URL from the backend
-        const { data: signedUrlData } = await axios.get("/api/upload");
-
+        console.log("Final profile pic = ", profilePictureUrl);
+        const { data: signedUrlData } = await axios.get("/api/upload?count=1");
+        const signedUrl = signedUrlData.urls[0];
         // Use the signed URL to upload the image file to S3
-        await axios.put(signedUrlData.url, imageFile, {
+        await axios.put(signedUrl, imageFile, {
           headers: {
             "Content-Type": imageFile.type,
             // "x-amz-acl": "public-read",
@@ -87,7 +115,7 @@ export default function EditProfileForm({ user }: { user: any }) {
         });
 
         // Save the image URL from S3 (without the signed part)
-        profilePictureUrl = signedUrlData.url.split("?")[0];
+        profilePictureUrl = signedUrl.split("?")[0];
       } catch (error) {
         toast({
           title: "Error",
@@ -111,6 +139,7 @@ export default function EditProfileForm({ user }: { user: any }) {
           description: "Your profile has been successfully updated.",
         });
         console.log("Profile updated:", response.data);
+        setIsBusy(false);
       })
       .catch((error) => {
         toast({
@@ -168,13 +197,66 @@ export default function EditProfileForm({ user }: { user: any }) {
               />
               <FormField
                 control={form.control}
+                name="hobbies"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Hobbies</FormLabel>
+                    <FormControl>
+                      <div className="space-y-2">
+                        <ScrollArea className="h-20 w-full border rounded-md p-2">
+                          <div className="flex flex-wrap gap-2">
+                            {field.value.map((hobby) => (
+                              <Badge
+                                key={hobby}
+                                variant="secondary"
+                                className="bg-secondary text-secondary-foreground hover:bg-secondary/80 cursor-pointer"
+                                onClick={() => {
+                                  const newValue = field.value.filter(
+                                    (h) => h !== hobby
+                                  );
+                                  form.setValue("hobbies", newValue);
+                                }}
+                              >
+                                {hobby} ✕
+                              </Badge>
+                            ))}
+                          </div>
+                        </ScrollArea>
+                        <ScrollArea className="h-20 w-full border rounded-md p-2">
+                          <div className="flex flex-wrap gap-2">
+                            {hobbyOptions
+                              .filter((hobby) => !field.value.includes(hobby))
+                              .map((hobby) => (
+                                <Badge
+                                  key={hobby}
+                                  variant="outline"
+                                  className="bg-background hover:bg-secondary/80 cursor-pointer"
+                                  onClick={() => {
+                                    const newValue = [...field.value, hobby];
+                                    form.setValue("hobbies", newValue);
+                                  }}
+                                >
+                                  {hobby}
+                                </Badge>
+                              ))}
+                          </div>
+                        </ScrollArea>
+                      </div>
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
                 name="expectedRent"
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Expected Rent</FormLabel>
                     <FormControl>
                       <Input
-                        type="number"
+                        type="string"
                         placeholder="Enter expected rent"
                         {...field}
                       />
@@ -212,7 +294,7 @@ export default function EditProfileForm({ user }: { user: any }) {
                   </FormItem>
                 )}
               />
-              <Button type="submit" className="w-full">
+              <Button type="submit" className="w-full" disabled={isBusy}>
                 Save Changes
               </Button>
             </form>

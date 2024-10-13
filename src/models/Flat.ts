@@ -7,6 +7,11 @@ export interface IFlat extends Document {
   genderPreference: string;
   description: string;
   images: string[];
+  postedBy: {
+    name: string;
+    contactNumber: string;
+    email: string;
+  };
 }
 
 const FlatSchema: Schema = new Schema(
@@ -17,6 +22,11 @@ const FlatSchema: Schema = new Schema(
     genderPreference: { type: String, required: true },
     description: { type: String, required: true },
     images: [{ type: String, required: true }],
+    postedBy: {
+      name: { type: String, required: true },
+      contactNumber: { type: String, required: true },
+      email: { type: String, required: true },
+    },
   },
   { timestamps: true }
 );

@@ -1,4 +1,8 @@
-import { useState } from "react";
+"use client";
+import { useState, useEffect } from "react";
+import Link from "next/link"; // Import the Link component
+
+import axios from "axios";
 import {
   Select,
   SelectContent,
@@ -10,51 +14,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-
-const flats = [
-  {
-    id: 1,
-    image: "/placeholder.svg?height=200&width=300",
-    rent: 15000,
-    gender: "Male",
-    location: "Sector 62",
-  },
-  {
-    id: 2,
-    image: "/placeholder.svg?height=200&width=300",
-    rent: 18000,
-    gender: "Female",
-    location: "Sector 18",
-  },
-  {
-    id: 3,
-    image: "/placeholder.svg?height=200&width=300",
-    rent: 12000,
-    gender: "Male/Female",
-    location: "Sector 15",
-  },
-  {
-    id: 4,
-    image: "/placeholder.svg?height=200&width=300",
-    rent: 20000,
-    gender: "Male",
-    location: "Sector 50",
-  },
-  {
-    id: 5,
-    image: "/placeholder.svg?height=200&width=300",
-    rent: 16000,
-    gender: "Female",
-    location: "Sector 76",
-  },
-  {
-    id: 6,
-    image: "/placeholder.svg?height=200&width=300",
-    rent: 14000,
-    gender: "Male/Female",
-    location: "Sector 32",
-  },
-];
+import { Skeleton } from "@/components/ui/skeleton"; // Import Shadcn Skeleton
 
 export default function FlatsPage() {
   const [filters, setFilters] = useState({
@@ -62,26 +22,50 @@ export default function FlatsPage() {
     city: "",
     rent: "",
   });
-  const [displayedFlats, setDisplayedFlats] = useState(flats);
+  const [displayedFlats, setDisplayedFlats] = useState([]);
+  const [loading, setLoading] = useState(true); // Initially set loading to true
 
-  const handleFilterChange = (key: string, value: string) => {
-    setFilters((prev) => ({ ...prev, [key]: value }));
+  // Fetch flats based on the selected filters
+  const handleSearch = async () => {
+    setLoading(true); // Set loading state to true when fetching data
+    try {
+      const response = await axios.get("/api/flats/filter", {
+        params: {
+          city: filters.city,
+          gender: filters.gender,
+          rent: filters.rent,
+        },
+      });
+      setDisplayedFlats(response.data.flats);
+    } catch (error) {
+      console.error("Error fetching flats:", error);
+    } finally {
+      setLoading(false); // Stop loading once the data is fetched
+    }
   };
 
-  const handleSearch = () => {
-    const filteredFlats = flats.filter(
-      (flat) =>
-        (filters.gender === "" || flat.gender === filters.gender) &&
-        (filters.city === "" || flat.location.includes(filters.city)) &&
-        (filters.rent === "" || flat.rent <= parseInt(filters.rent))
-    );
-    setDisplayedFlats(filteredFlats);
-  };
+  // Fetch all flats in a city when the city changes
+  useEffect(() => {
+    const fetchFlats = async () => {
+      setLoading(true); // Show loading state when the page loads
+      try {
+        const response = await axios.get("/api/flats", {
+          params: { city: "Delhi" },
+        });
+        setDisplayedFlats(response.data.flats);
+      } catch (error) {
+        console.error("Error fetching flats:", error);
+      } finally {
+        setLoading(false); // Stop loading after data is fetched
+      }
+    };
+    fetchFlats();
+  }, []);
 
   return (
     <div className="container mx-auto px-4 py-8">
       <h1 className="text-4xl font-extrabold mb-8 text-center">
-        Find Roommates in Noida
+        Find Roommates in {filters.city || "Noida"}
       </h1>
 
       <div className="mb-8">
@@ -89,7 +73,9 @@ export default function FlatsPage() {
         <div className="flex flex-wrap justify-center items-end gap-4">
           <div className="w-full sm:w-auto">
             <Select
-              onValueChange={(value) => handleFilterChange("gender", value)}
+              onValueChange={(value) =>
+                setFilters((prev) => ({ ...prev, gender: value }))
+              }
             >
               <SelectTrigger className="w-full sm:w-[180px]">
                 <SelectValue placeholder="Gender" />
@@ -104,18 +90,21 @@ export default function FlatsPage() {
 
           <div className="w-full sm:w-auto">
             <Select
-              onValueChange={(value) => handleFilterChange("city", value)}
+              onValueChange={(value) =>
+                setFilters((prev) => ({ ...prev, city: value }))
+              }
             >
               <SelectTrigger className="w-full sm:w-[180px]">
                 <SelectValue placeholder="City" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="Sector 62">Sector 62</SelectItem>
-                <SelectItem value="Sector 18">Sector 18</SelectItem>
-                <SelectItem value="Sector 15">Sector 15</SelectItem>
-                <SelectItem value="Sector 50">Sector 50</SelectItem>
-                <SelectItem value="Sector 76">Sector 76</SelectItem>
-                <SelectItem value="Sector 32">Sector 32</SelectItem>
+                {["Delhi", "Noida", "Mumbai", "Pune", "Bangalore"].map(
+                  (city) => (
+                    <SelectItem key={city} value={city}>
+                      {city}
+                    </SelectItem>
+                  )
+                )}
               </SelectContent>
             </Select>
           </div>
@@ -126,7 +115,9 @@ export default function FlatsPage() {
               placeholder="Max Rent (₹)"
               className="w-full sm:w-[180px]"
               value={filters.rent}
-              onChange={(e) => handleFilterChange("rent", e.target.value)}
+              onChange={(e) =>
+                setFilters((prev) => ({ ...prev, rent: e.target.value }))
+              }
             />
           </div>
 
@@ -136,24 +127,54 @@ export default function FlatsPage() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {displayedFlats.map((flat) => (
-          <Card key={flat.id} className="overflow-hidden">
-            <img
-              src={flat.image}
-              alt={`Flat in ${flat.location}`}
-              className="w-full h-48 object-cover"
-            />
-            <CardContent className="p-4">
-              <p className="text-2xl font-bold mb-2">₹{flat.rent}</p>
-              <div className="flex justify-between items-center">
-                <Badge variant="secondary">{flat.gender}</Badge>
-                <p className="text-sm text-gray-600">{flat.location}</p>
-              </div>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
+      {/* Display Skeletons while loading */}
+      {loading ? (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {[...Array(6)].map((_, i) => (
+            <Card key={i} className="overflow-hidden">
+              <Skeleton className="w-full h-48" />
+              <CardContent className="p-4">
+                <Skeleton className="h-6 w-1/2 mb-4" />
+                <Skeleton className="h-4 w-1/3" />
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      ) : (
+        <>
+          {/* Display "No flats found" message if no results */}
+          {displayedFlats.length === 0 ? (
+            <div className="text-center">
+              <p className="text-2xl font-bold text-gray-500">
+                Sorry, no flats found.
+              </p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {displayedFlats.map((flat) => (
+                <Link href={`/flats/${flat._id}`} key={flat._id}>
+                  <Card key={flat._id} className="overflow-hidden">
+                    <img
+                      src={flat.images[0]} // Display the first image of the flat
+                      alt={`Flat in ${flat.city}`}
+                      className="w-full h-48 object-cover"
+                    />
+                    <CardContent className="p-4">
+                      s<p className="text-2xl font-bold mb-2">₹{flat.rent}</p>
+                      <div className="flex justify-between items-center">
+                        <Badge variant="secondary">
+                          {flat.genderPreference}
+                        </Badge>
+                        <p className="text-sm text-gray-600">{flat.city}</p>
+                      </div>
+                    </CardContent>
+                  </Card>
+                </Link>
+              ))}
+            </div>
+          )}
+        </>
+      )}
     </div>
   );
 }
